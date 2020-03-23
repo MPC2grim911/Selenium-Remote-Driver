@@ -546,8 +546,8 @@ has 'remote_server_addr' => (
 
 has 'browser_name' => (
     is     => 'rw',
-    coerce => sub { ( defined( $_[0] ) ? $_[0] : 'firefox' ) },
-    default => sub { 'firefox' },
+    coerce => sub { ( defined( $_[0] ) ? $_[0] : '' ) },
+    default => sub { '' },
 );
 
 has 'base_url' => (
@@ -749,11 +749,46 @@ has '_execute_script_suffix' => (
     default => ''
 );
 
+has 'direct' => (
+    is      => 'lazy',
+    default => 0
+);
+
 with 'Selenium::Remote::Finders';
 with 'Selenium::Remote::Driver::CanSetWebdriverContext';
 
 sub BUILD {
-    my $self = shift;
+	my ($self,$args) = @_;
+
+    #If the direct parameter is passed, just become a direct driver instead, unless we are already this..
+    if ( $self->direct ) {
+
+        my @drivers = qw{Selenium::Firefox Selenium::Chrome Selenium::Edge Selenium::InternetExplorer};
+        my @browsers = qw{firefox chrome MicrosoftEdge};
+        push(@browsers, 'internet explorer');
+
+        my %match;
+        @match{@browsers} = @drivers;
+
+        @browsers = ($self->browser_name) if $self->browser_name;
+		$args->{direct} = 0;
+
+        foreach my $browser (@browsers) {
+			my $modfile = $match{$browser}.".pm";
+			$modfile =~ s/::/\//;
+			require $modfile;
+            my $newself = eval { $match{$browser}->new(%$args) };
+            if ($newself) {
+                print "Driver binary for $browser found, constructing as $match{$browser}...\n";
+                $self = $newself;
+				print ref($self)." ".ref($newself)."\n";
+				return $self;
+            }
+        }
+    }
+
+    #Set the old default behavior to allow direct parameter passing to work
+    $self->browser_name('firefox');
 
     if ( !( defined $self->session_id ) ) {
         if ( $self->has_desired_capabilities ) {

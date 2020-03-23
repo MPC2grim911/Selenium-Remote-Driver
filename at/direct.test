@@ -1,0 +1,22 @@
+use strict;
+use warnings;
+
+use Selenium::Remote::Driver;
+use Test::More tests => 3;
+use Test::Fatal;
+
+my $driver;
+is( exception { $driver = Selenium::Remote::Driver->new(
+    direct => 1,
+    browser => 'firefox',
+	extra_capabilities => {
+        'moz:firefoxOptions' => {
+            args    => [ '-headless' ],
+        },
+    },
+); }, undef, "can spawn new Selenium");
+
+is(ref($driver), 'Selenium::Firefox', "Able to launch when driver binary in \$PATH");
+
+is( exception { $driver->get('http://google.com') }, undef, "Can navigate to a page");
+
